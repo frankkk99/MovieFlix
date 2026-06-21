@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Portfolio Links</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Kanit', sans-serif; background: #0f0f0f; }
+  </style>
+</head>
+<body class="text-white min-h-screen">
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-bold">ระบบจัดการลิงก์ผลงาน</h1>
+        <p class="text-gray-400 mt-2">วางลิงก์ Google Drive ของผลงานแต่ละเรื่อง แล้วหน้าเว็บจะแสดง iframe อัตโนมัติ</p>
+      </div>
+      <a href="/" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-md text-sm">กลับหน้าเว็บ</a>
+    </div>
+
+    <section id="login-panel" class="bg-[#181818] rounded-xl border border-white/10 p-6 mb-6">
+      <h2 class="text-xl font-bold mb-4">เข้าสู่ระบบแอดมิน</h2>
+      <div class="flex flex-col md:flex-row gap-3">
+        <input id="admin-password" type="password" placeholder="รหัสแอดมิน" class="flex-1 bg-gray-900 border border-white/10 rounded-md px-4 py-3 outline-none focus:border-red-600">
+        <button id="login-admin-btn" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-md font-semibold">เข้าสู่ระบบ</button>
+      </div>
+      <p class="text-gray-500 text-sm mt-3">Demo password: <span class="text-gray-300">admin123</span></p>
+    </section>
+
+    <section id="admin-panel" class="hidden space-y-6">
+      <div class="bg-[#181818] rounded-xl border border-white/10 p-6">
+        <h2 class="text-xl font-bold mb-4">เพิ่ม / แก้ไขลิงก์ผลงาน</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-400 mb-2">ชื่อผลงาน</label>
+            <input id="content-title" type="text" placeholder="ต้องตรงกับชื่อที่แสดงในหน้า Player" class="w-full bg-gray-900 border border-white/10 rounded-md px-4 py-3 outline-none focus:border-red-600">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-2">ลิงก์ Google Drive</label>
+            <input id="content-url" type="text" placeholder="วางลิงก์แชร์ หรือ /preview" class="w-full bg-gray-900 border border-white/10 rounded-md px-4 py-3 outline-none focus:border-red-600">
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mt-4">
+          <button id="save-link-btn" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-md font-semibold">บันทึก</button>
+          <button id="clear-form-btn" class="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-md font-semibold">ล้างฟอร์ม</button>
+        </div>
+        <p id="save-status" class="text-sm text-gray-400 mt-3"></p>
+      </div>
+
+      <div class="bg-[#181818] rounded-xl border border-white/10 p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <h2 class="text-xl font-bold">รายการที่บันทึกแล้ว</h2>
+          <input id="filter-input" type="text" placeholder="ค้นหาชื่อผลงาน..." class="bg-gray-900 border border-white/10 rounded-md px-4 py-2 outline-none focus:border-red-600">
+        </div>
+        <div id="links-list" class="space-y-3"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
