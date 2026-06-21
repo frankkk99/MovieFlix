@@ -1,0 +1,1 @@
+Restored main to working commit 154b1eba676ecd45d408c1508472fe545f9e5d95 after similar row code caused page hang.
