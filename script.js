@@ -6,10 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const $ = (id) => document.getElementById(id);
     const show = (el) => el && el.classList.remove('hidden');
     const hide = (el) => el && el.classList.add('hidden');
-    const setText = (el, value) => { if (el) el.textContent = value || ''; };
+    const setText = (el, value) => {
+        if (el) el.textContent = value || '';
+    };
 
     const mainHeader = $('main-header');
     const mainContent = $('main-content');
+
     const heroSection = {
         backdrop: $('hero-backdrop'),
         title: $('hero-title'),
@@ -18,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         watchBtn: $('hero-watch-btn'),
         meta: $('hero-meta')
     };
+
     const modal = {
         container: $('movie-modal'),
         content: $('modal-content'),
@@ -32,12 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
         addToListBtn: $('modal-add-list-btn'),
         watchBtn: $('modal-watch-btn')
     };
+
     const categoryModal = {
         container: $('category-modal'),
         title: $('category-modal-title'),
         grid: $('category-modal-grid'),
         closeBtn: $('close-category-modal-btn')
     };
+
     const searchModal = {
         container: $('search-modal'),
         closeBtn: $('close-search-modal-btn'),
@@ -51,23 +57,27 @@ document.addEventListener('DOMContentLoaded', () => {
         title: $('search-modal-title'),
         clearBtn: $('clear-search-btn')
     };
+
     const loginModal = {
         container: $('login-modal'),
         closeBtn: $('close-login-modal-btn'),
         socialButtons: document.querySelectorAll('.social-login-btn')
     };
+
     const notificationModal = {
         container: $('notification-modal'),
         closeBtn: $('close-notification-modal-btn'),
         content: $('notification-content'),
         overlay: $('notification-overlay')
     };
+
     const alertModal = {
         container: $('alert-modal'),
         title: $('alert-modal-title'),
         body: $('alert-modal-body'),
         closeBtn: $('alert-modal-close-btn')
     };
+
     const playerPage = {
         section: $('player-page'),
         backBtn: $('back-to-main-btn'),
@@ -81,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         overview: $('player-overview'),
         cast: $('player-cast')
     };
+
     const premiumModal = {
         container: $('premium-modal'),
         closeBtn: $('close-premium-modal-btn'),
@@ -92,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         copyBtn: $('copy-account-info-btn'),
         accountNumberText: $('account-number-text')
     };
+
     const adPlayer = {
         modal: $('ad-player-modal'),
         video: $('ad-video-player'),
@@ -100,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         counter: $('ad-counter'),
         subscribeBtn: $('ad-subscribe-btn')
     };
+
     const chat = {
         toggleBtn: $('chat-toggle-btn'),
         window: $('chat-window'),
@@ -108,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input: $('chat-input'),
         sendBtn: $('chat-send-btn')
     };
+
     const bellBtn = $('bell-btn');
     const searchBtn = $('search-btn');
     const loginBtn = $('login-btn');
@@ -132,6 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingPreview = null;
     let currentAdIndex = 0;
     let skipAdInterval = null;
+    const activeAutoRows = [];
+
     const adVideos = [
         'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
         'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
@@ -140,7 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const titleOf = (item) => item?.title || item?.name || item?.original_title || item?.original_name || 'Untitled';
     const dateOf = (item) => item?.release_date || item?.first_air_date || '';
-    const yearOf = (item) => dateOf(item)?.slice(0, 4) || '-';
     const poster = (path) => path ? `${IMAGE_BASE_URL}w500${path}` : FALLBACK_POSTER;
     const backdrop = (path) => path ? `${IMAGE_BASE_URL}original${path}` : FALLBACK_BACKDROP;
     const mediaTypeOf = (item, fallback = 'movie') => item?.media_type === 'tv' || item?.first_air_date || item?.name ? 'tv' : fallback;
@@ -151,12 +166,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = new URL('/api/tmdb', window.location.origin);
         url.searchParams.set('path', path);
         url.searchParams.set('language', options.language || query.get('language') || 'th-TH');
+
         query.forEach((value, key) => {
             if (key !== 'language') url.searchParams.set(key, value);
         });
+
         Object.entries(options.params || {}).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, value);
+            if (value !== undefined && value !== null && value !== '') {
+                url.searchParams.set(key, value);
+            }
         });
+
         try {
             const response = await fetch(url.toString());
             const data = await response.json().catch(() => ({}));
@@ -166,6 +186,23 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Fetch API Error:', error);
             return null;
         }
+    }
+
+    async function fetchPages(path, params = {}, pages = 3, language = 'th-TH') {
+        const calls = [];
+        for (let page = 1; page <= pages; page += 1) {
+            calls.push(fetchAPI(path, { language, params: { ...params, page } }));
+        }
+        const results = await Promise.all(calls);
+        const map = new Map();
+        results.forEach((data) => {
+            (data?.results || []).forEach((item) => {
+                if (!item?.id) return;
+                const key = `${mediaTypeOf(item, path.includes('/tv') ? 'tv' : 'movie')}-${item.id}`;
+                if (!map.has(key)) map.set(key, item);
+            });
+        });
+        return Array.from(map.values());
     }
 
     function formatRuntime(details, mediaType) {
@@ -179,6 +216,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const hours = Math.floor(minutes / 60);
         const remain = minutes % 60;
         return hours ? `${hours} ชม. ${remain} นาที` : `${remain} นาที`;
+    }
+
+    function safeOverview(value) {
+        return value || 'ยังไม่มีเรื่องย่อภาษาไทยสำหรับรายการนี้';
     }
 
     function showAlert(title, body) {
@@ -300,12 +341,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return wrapper;
     }
 
+    function startAutoScroll(row) {
+        if (!row || row.dataset.autoScrollReady === 'true') return;
+        row.dataset.autoScrollReady = 'true';
+        let paused = false;
+        let direction = 1;
+        let timer = null;
+
+        const step = () => {
+            if (paused) return;
+            const max = row.scrollWidth - row.clientWidth;
+            if (max <= 0) return;
+            row.scrollLeft += direction;
+            if (row.scrollLeft >= max - 2) direction = -1;
+            if (row.scrollLeft <= 2) direction = 1;
+        };
+
+        timer = setInterval(step, 35);
+        row.addEventListener('mouseenter', () => { paused = true; });
+        row.addEventListener('mouseleave', () => { paused = false; });
+        row.addEventListener('touchstart', () => { paused = true; }, { passive: true });
+        row.addEventListener('touchend', () => { setTimeout(() => { paused = false; }, 1200); }, { passive: true });
+        activeAutoRows.push(timer);
+    }
+
     function renderRow(title, items, containerId, path, mediaType = 'movie', params = {}) {
         const container = $(containerId);
         if (!container || !items?.length) return;
         const row = document.createElement('div');
-        row.className = 'flex overflow-x-scroll no-scrollbar -mx-4 px-4 py-2 gap-4';
-        items.filter((item) => item.poster_path || item.backdrop_path).slice(0, 20).forEach((item) => row.appendChild(createCard(item, mediaType)));
+        row.className = 'movie-row flex overflow-x-scroll no-scrollbar -mx-4 px-4 py-2 gap-4 scroll-smooth';
+        items.filter((item) => item.poster_path || item.backdrop_path).slice(0, 48).forEach((item) => row.appendChild(createCard(item, mediaType)));
         container.innerHTML = `
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-xl md:text-2xl font-bold">${title}</h3>
@@ -314,18 +379,19 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         container.appendChild(row);
         container.querySelector('button')?.addEventListener('click', () => openCategory(title, path, mediaType, params));
+        startAutoScroll(row);
     }
 
     async function loadRow(title, containerId, path, mediaType = 'movie', params = {}) {
         const container = $(containerId);
         if (!container) return;
         container.innerHTML = `<h3 class="text-xl md:text-2xl font-bold mb-4">${title}</h3><div class="py-6 text-gray-500">กำลังโหลด...</div>`;
-        const data = await fetchAPI(path, { params });
-        if (!data?.results) {
+        const items = await fetchPages(path, params, 3);
+        if (!items.length) {
             container.innerHTML = `<h3 class="text-xl md:text-2xl font-bold mb-4">${title}</h3><div class="py-6 text-red-300">โหลดข้อมูลไม่สำเร็จ</div>`;
             return;
         }
-        renderRow(title, data.results, containerId, path, mediaType, params);
+        renderRow(title, items, containerId, path, mediaType, params);
     }
 
     async function updateHeroSection(items) {
@@ -333,17 +399,21 @@ document.addEventListener('DOMContentLoaded', () => {
         heroItem = valid[Math.floor(Math.random() * valid.length)] || items?.[0];
         if (!heroItem) return;
         if (heroImageInterval) clearInterval(heroImageInterval);
-        heroSection.backdrop.src = backdrop(heroItem.backdrop_path);
+        if (heroSection.backdrop) heroSection.backdrop.src = backdrop(heroItem.backdrop_path);
         setText(heroSection.title, titleOf(heroItem));
-        setText(heroSection.overview, heroItem.overview || 'No overview available.');
+        setText(heroSection.overview, safeOverview(heroItem.overview));
         const fullDate = dateOf(heroItem) ? new Date(dateOf(heroItem)).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A';
         if (heroSection.meta) {
             heroSection.meta.innerHTML = `<span class="text-yellow-400">★ ${Number(heroItem.vote_average || 0).toFixed(1)}</span><span>•</span><span>${fullDate}</span><span>•</span><span class="border border-gray-400 px-1.5 rounded text-xs">${(heroItem.original_language || '').toUpperCase()}</span>`;
         }
-        heroSection.infoBtn.dataset.itemId = heroItem.id;
-        heroSection.infoBtn.dataset.mediaType = 'movie';
-        heroSection.watchBtn.dataset.itemId = heroItem.id;
-        heroSection.watchBtn.dataset.mediaType = 'movie';
+        if (heroSection.infoBtn) {
+            heroSection.infoBtn.dataset.itemId = heroItem.id;
+            heroSection.infoBtn.dataset.mediaType = 'movie';
+        }
+        if (heroSection.watchBtn) {
+            heroSection.watchBtn.dataset.itemId = heroItem.id;
+            heroSection.watchBtn.dataset.mediaType = 'movie';
+        }
         const imagesData = await fetchAPI(`/movie/${heroItem.id}/images`, { language: 'en-US' });
         const backdrops = imagesData?.backdrops || [];
         if (backdrops.length > 1) {
@@ -355,13 +425,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     heroSection.backdrop.src = backdrop(random.file_path);
                     heroSection.backdrop.style.opacity = 1;
                 }, 500);
-            }, 8000);
+            }, 7000);
         }
     }
 
     async function loadHome() {
-        const popular = await fetchAPI('/movie/popular');
-        if (popular?.results?.length) await updateHeroSection(popular.results);
+        const popularItems = await fetchPages('/movie/popular', {}, 2);
+        if (popularItems.length) await updateHeroSection(popularItems);
         else {
             setText(heroSection.title, 'โหลดข้อมูลไม่สำเร็จ');
             setText(heroSection.overview, 'ตรวจสอบ TMDB_ACCESS_TOKEN ใน Vercel แล้ว Redeploy ใหม่');
@@ -420,10 +490,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function openModalShell() {
+        show(modal.container);
+        if (modal.content) {
+            modal.content.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+            modal.content.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+        }
+    }
+
     async function showDetailModal(itemId, mediaType = 'movie', fallbackItem = null) {
         selectedMediaType = mediaType;
         selectedItem = fallbackItem;
-        show(modal.container);
+        openModalShell();
         setText(modal.title, fallbackItem ? titleOf(fallbackItem) : 'กำลังโหลด...');
         setText(modal.overview, 'กำลังโหลดรายละเอียด...');
         if (modal.backdrop && fallbackItem) modal.backdrop.src = backdrop(fallbackItem.backdrop_path || fallbackItem.poster_path);
@@ -437,10 +515,18 @@ document.addEventListener('DOMContentLoaded', () => {
         setText(modal.releaseDate, dateOf(details) || '-');
         setText(modal.runtime, formatRuntime(details, mediaType));
         setText(modal.rating, `${Number(details.vote_average || 0).toFixed(1)}/10`);
-        setText(modal.overview, details.overview || 'No overview available.');
+        setText(modal.overview, safeOverview(details.overview));
         if (modal.backdrop) modal.backdrop.src = backdrop(details.backdrop_path || details.poster_path);
         if (modal.genres) modal.genres.innerHTML = (details.genres || []).map((g) => `<span class="bg-gray-700 text-xs px-2 py-1 rounded">${g.name}</span>`).join('');
         updateFavoriteButton(details, mediaType);
+    }
+
+    function closeDetailModal() {
+        hide(modal.container);
+        if (modal.content) {
+            modal.content.classList.add('opacity-0', 'scale-95');
+            modal.content.classList.remove('opacity-100', 'scale-100');
+        }
     }
 
     function pickBestVideo(data) {
@@ -466,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function openPlayer(mediaType, id) {
         hide(mainContent);
-        hide(modal.container);
+        closeDetailModal();
         show(playerPage.section);
         window.scrollTo(0, 0);
         if (location.hash !== `#/player/${mediaType}/${id}`) history.pushState(null, '', `#/player/${mediaType}/${id}`);
@@ -486,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setText(playerPage.releaseDate, dateOf(details) || '-');
         setText(playerPage.runtime, formatRuntime(details, mediaType));
         if (playerPage.rating) playerPage.rating.innerHTML = `<span class="text-yellow-400">★</span><span>${Number(details.vote_average || 0).toFixed(1)}</span>`;
-        setText(playerPage.overview, details.overview || 'No overview available.');
+        setText(playerPage.overview, safeOverview(details.overview));
         if (playerPage.genres) playerPage.genres.innerHTML = (details.genres || []).map((g) => `<span class="bg-gray-800 text-sm px-3 py-1 rounded-full">${g.name}</span>`).join('');
         if (trailer) {
             playerPage.youtubeWrapper.innerHTML = `<iframe class="w-full h-full rounded-lg" src="https://www.youtube.com/embed/${trailer.key}?rel=0&controls=1&modestbranding=1&playsinline=1" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
@@ -494,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playerPage.youtubeWrapper.innerHTML = `<div class="relative w-full h-full bg-black rounded-lg overflow-hidden"><img src="${backdrop(details.backdrop_path || details.poster_path)}" class="w-full h-full object-cover opacity-60"><div class="absolute inset-0 flex items-center justify-center text-center px-6"><div><p class="text-xl font-bold">ยังไม่มีตัวอย่างอย่างเป็นทางการ</p><p class="text-sm text-gray-300 mt-2">แสดงข้อมูลภาพยนตร์แทน</p></div></div></div>`;
         }
         const cast = (credits?.cast || []).slice(0, 10);
-        if (playerPage.cast) playerPage.cast.innerHTML = cast.length ? cast.map((p) => `<div class="text-center"><img src="${poster(p.profile_path)}" class="w-full aspect-[2/3] object-cover rounded-md bg-gray-800"><p class="text-sm font-semibold mt-2 line-clamp-1">${p.name}</p><p class="text-xs text-gray-400 line-clamp-1">${p.character || ''}</p></div>`).join('') : '<p class="text-gray-400 col-span-full">No cast data.</p>';
+        if (playerPage.cast) playerPage.cast.innerHTML = cast.length ? cast.map((p) => `<div class="text-center"><img src="${poster(p.profile_path)}" class="w-full aspect-[2/3] object-cover rounded-md bg-gray-800"><p class="text-sm font-semibold mt-2 line-clamp-1">${p.name}</p><p class="text-xs text-gray-400 line-clamp-1">${p.character || ''}</p></div>`).join('') : '<p class="text-gray-400 col-span-full">ยังไม่มีข้อมูลนักแสดง</p>';
     }
 
     function startPreviewFlow(mediaType, id) {
@@ -521,20 +607,20 @@ document.addEventListener('DOMContentLoaded', () => {
             closeAdAndContinue();
             return;
         }
-        adPlayer.counter && (adPlayer.counter.textContent = `ตัวอย่างสนับสนุน ${currentAdIndex + 1}/${adVideos.length}`);
+        if (adPlayer.counter) adPlayer.counter.textContent = `ตัวอย่างสนับสนุน ${currentAdIndex + 1}/${adVideos.length}`;
         adPlayer.video.src = adVideos[currentAdIndex];
         adPlayer.video.currentTime = 0;
         adPlayer.video.play().catch(() => {});
         let seconds = 5;
         adPlayer.skipBtn.disabled = true;
-        adPlayer.skipTimer.textContent = `(${seconds})`;
+        if (adPlayer.skipTimer) adPlayer.skipTimer.textContent = `(${seconds})`;
         clearInterval(skipAdInterval);
         skipAdInterval = setInterval(() => {
             seconds -= 1;
-            adPlayer.skipTimer.textContent = seconds > 0 ? `(${seconds})` : '';
+            if (adPlayer.skipTimer) adPlayer.skipTimer.textContent = seconds > 0 ? `(${seconds})` : '';
             if (seconds <= 0) {
-                clearInterval(skipAdInterval);
                 adPlayer.skipBtn.disabled = false;
+                clearInterval(skipAdInterval);
             }
         }, 1000);
     }
@@ -542,159 +628,160 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeAdAndContinue() {
         clearInterval(skipAdInterval);
         hide(adPlayer.modal);
-        adPlayer.video?.pause();
-        if (pendingPreview) openPlayer(pendingPreview.mediaType, pendingPreview.id);
-        pendingPreview = null;
+        if (adPlayer.video) {
+            adPlayer.video.pause();
+            adPlayer.video.removeAttribute('src');
+        }
+        if (pendingPreview) {
+            const next = pendingPreview;
+            pendingPreview = null;
+            openPlayer(next.mediaType, next.id);
+        }
     }
 
     async function openCategory(title, path, mediaType = 'movie', params = {}) {
         show(categoryModal.container);
         setText(categoryModal.title, title);
-        categoryModal.grid.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400">กำลังโหลด...</div>';
-        const data = await fetchAPI(path, { params });
+        categoryModal.grid.innerHTML = '<div class="col-span-full py-10 text-gray-400">กำลังโหลด...</div>';
+        const items = await fetchPages(path, params, 5);
         categoryModal.grid.innerHTML = '';
-        const results = (data?.results || []).filter((item) => item.poster_path || item.backdrop_path);
-        if (!results.length) categoryModal.grid.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400">ไม่มีข้อมูล</div>';
-        results.forEach((item) => categoryModal.grid.appendChild(createCard(item, mediaType, true)));
+        items.filter((item) => item.poster_path || item.backdrop_path).forEach((item) => categoryModal.grid.appendChild(createCard(item, mediaType, true)));
+        if (!categoryModal.grid.children.length) categoryModal.grid.innerHTML = '<p class="col-span-full text-gray-400">ไม่พบรายการ</p>';
     }
 
-    function openFavorites() {
-        show(categoryModal.container);
-        setText(categoryModal.title, 'รายการโปรด');
-        categoryModal.grid.innerHTML = '';
-        if (!myFavoriteList.length) {
-            categoryModal.grid.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400">ยังไม่มีรายการโปรด</div>';
-            return;
-        }
-        myFavoriteList.forEach((item) => categoryModal.grid.appendChild(createCard(item, item.media_type || 'movie', true)));
-    }
-
-    async function runSearch() {
-        if (!searchModal.grid) return;
-        searchModal.grid.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400">กำลังค้นหา...</div>';
-        const keyword = searchModal.input?.value.trim() || '';
-        const type = searchModal.typeSelect?.value || 'multi';
+    async function performSearch() {
+        const type = searchModal.typeSelect?.value || 'movie';
+        const keyword = searchModal.input?.value?.trim() || '';
         const genre = searchModal.genreSelect?.value || '';
         const year = searchModal.yearSelect?.value || '';
         const sortBy = searchModal.sortBySelect?.value || 'popularity.desc';
-        let path = '/discover/movie';
-        let params = { page: 1, sort_by: sortBy };
-        let fallbackType = 'movie';
-        if (keyword) {
-            path = type === 'multi' ? '/search/multi' : `/search/${type}`;
-            params = { page: 1, query: keyword };
-            fallbackType = type === 'tv' ? 'tv' : 'movie';
-        } else if (type === 'tv') {
-            path = '/discover/tv';
-            fallbackType = 'tv';
-        }
-        if (!keyword && genre) params.with_genres = genre;
-        if (!keyword && year) params[type === 'tv' ? 'first_air_date_year' : 'primary_release_year'] = year;
-        const data = await fetchAPI(path, { params });
-        let results = (data?.results || []).filter((item) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path));
-        if (keyword && genre) results = results.filter((item) => (item.genre_ids || []).includes(Number(genre)));
-        if (keyword && year) results = results.filter((item) => yearOf(item) === year);
+        setText(searchModal.title, keyword ? `ผลการค้นหา: ${keyword}` : 'ค้นหาแบบละเอียด');
+        searchModal.grid.innerHTML = '<div class="col-span-full py-10 text-gray-400">กำลังค้นหา...</div>';
+        let path = keyword ? `/search/${type}` : `/discover/${type}`;
+        const params = keyword ? { query: keyword } : { sort_by: sortBy };
+        if (genre) params.with_genres = genre;
+        if (year) params[type === 'tv' ? 'first_air_date_year' : 'primary_release_year'] = year;
+        const items = await fetchPages(path, params, 3);
         searchModal.grid.innerHTML = '';
-        if (!results.length) searchModal.grid.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400">ไม่พบผลลัพธ์</div>';
-        results.forEach((item) => searchModal.grid.appendChild(createCard(item, mediaTypeOf(item, fallbackType), true)));
+        items.filter((item) => item.poster_path || item.backdrop_path).forEach((item) => searchModal.grid.appendChild(createCard(item, type, true)));
+        if (!searchModal.grid.children.length) searchModal.grid.innerHTML = '<p class="col-span-full text-gray-400">ไม่พบผลลัพธ์</p>';
     }
 
-    function renderNotification() {
-        if (!notificationModal.content) return;
-        notificationModal.content.innerHTML = '<div class="p-3 bg-gray-700/60 rounded-md"><p class="font-semibold">ระบบพร้อมใช้งาน</p><p class="text-sm text-gray-300 mt-1">สามารถค้นหา เปิดรายละเอียด และรับชมตัวอย่างอย่างเป็นทางการได้แล้ว</p></div>';
+    function openFavorites() {
+        show(searchModal.container);
+        setText(searchModal.title, 'รายการโปรดของฉัน');
+        searchModal.grid.innerHTML = '';
+        if (!myFavoriteList.length) {
+            searchModal.grid.innerHTML = '<p class="col-span-full text-gray-400">ยังไม่มีรายการโปรด</p>';
+            return;
+        }
+        myFavoriteList.forEach((item) => searchModal.grid.appendChild(createCard(item, item.media_type || 'movie', true)));
     }
 
-    function addChatMessage(message, fromUser = false) {
-        if (!chat.messages) return;
-        const bubble = document.createElement('div');
-        bubble.className = fromUser ? 'ml-auto bg-red-600 text-white rounded-lg px-3 py-2 max-w-[85%]' : 'mr-auto bg-gray-700 text-white rounded-lg px-3 py-2 max-w-[85%]';
-        bubble.textContent = message;
-        chat.messages.appendChild(bubble);
-        chat.messages.scrollTop = chat.messages.scrollHeight;
-    }
-
-    function sendChat() {
-        const message = chat.input?.value.trim();
-        if (!message) return;
-        addChatMessage(message, true);
-        chat.input.value = '';
-        setTimeout(() => addChatMessage('รับเรื่องแล้วครับ ตอนนี้ระบบเป็นตัวอย่างหน้าเว็บ สามารถต่อเข้าฐานข้อมูลจริงภายหลังได้'), 450);
-    }
-
-    function openPremiumModal() {
-        show(premiumModal.container);
-    }
-
-    function wireEvents() {
+    function bindEvents() {
         window.addEventListener('scroll', () => {
             if (!mainHeader) return;
-            if (window.scrollY > 80) mainHeader.classList.add('bg-[#141414]');
-            else mainHeader.classList.remove('bg-[#141414]');
+            mainHeader.classList.toggle('bg-[#141414]', window.scrollY > 20);
         });
-        heroSection.infoBtn?.addEventListener('click', () => heroItem && showDetailModal(heroItem.id, 'movie', heroItem));
-        heroSection.watchBtn?.addEventListener('click', () => heroItem && startPreviewFlow('movie', heroItem.id));
-        modal.watchBtn?.addEventListener('click', () => selectedItem && startPreviewFlow(selectedMediaType, selectedItem.id));
+
+        heroSection.infoBtn?.addEventListener('click', () => {
+            if (heroItem) showDetailModal(heroItem.id, 'movie', heroItem);
+        });
+        heroSection.watchBtn?.addEventListener('click', () => {
+            if (heroItem) startPreviewFlow('movie', heroItem.id);
+        });
+
+        modal.closeBtn?.addEventListener('click', closeDetailModal);
+        modal.container?.addEventListener('click', (event) => {
+            if (event.target === modal.container) closeDetailModal();
+        });
         modal.addToListBtn?.addEventListener('click', () => selectedItem && toggleFavorite(selectedItem, selectedMediaType));
-        modal.closeBtn?.addEventListener('click', () => hide(modal.container));
-        modal.container?.addEventListener('click', (e) => { if (e.target === modal.container) hide(modal.container); });
+        modal.watchBtn?.addEventListener('click', () => selectedItem && startPreviewFlow(selectedMediaType, selectedItem.id));
+
         categoryModal.closeBtn?.addEventListener('click', () => hide(categoryModal.container));
-        categoryModal.container?.addEventListener('click', (e) => { if (e.target === categoryModal.container) hide(categoryModal.container); });
-        searchBtn?.addEventListener('click', () => { show(searchModal.container); runSearch(); });
+        categoryModal.container?.addEventListener('click', (event) => {
+            if (event.target === categoryModal.container) hide(categoryModal.container);
+        });
+
+        searchBtn?.addEventListener('click', () => {
+            show(searchModal.container);
+            performSearch();
+        });
         searchModal.closeBtn?.addEventListener('click', () => hide(searchModal.container));
-        searchModal.clearBtn?.addEventListener('click', () => { if (searchModal.input) searchModal.input.value = ''; runSearch(); });
-        searchModal.input?.addEventListener('input', () => { clearTimeout(window.__searchTimer); window.__searchTimer = setTimeout(runSearch, 350); });
-        searchModal.typeSelect?.addEventListener('change', () => { fillGenres(); runSearch(); });
-        searchModal.genreSelect?.addEventListener('change', runSearch);
-        searchModal.yearSelect?.addEventListener('change', runSearch);
-        searchModal.sortBySelect?.addEventListener('change', runSearch);
-        searchModal.form?.addEventListener('submit', (e) => { e.preventDefault(); runSearch(); });
+        searchModal.form?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            performSearch();
+        });
+        searchModal.typeSelect?.addEventListener('change', () => {
+            fillGenres();
+            performSearch();
+        });
+        searchModal.genreSelect?.addEventListener('change', performSearch);
+        searchModal.yearSelect?.addEventListener('change', performSearch);
+        searchModal.sortBySelect?.addEventListener('change', performSearch);
+        searchModal.clearBtn?.addEventListener('click', () => {
+            if (searchModal.input) searchModal.input.value = '';
+            if (searchModal.genreSelect) searchModal.genreSelect.value = '';
+            if (searchModal.yearSelect) searchModal.yearSelect.value = '';
+            performSearch();
+        });
+
         loginBtn?.addEventListener('click', () => show(loginModal.container));
         loginModal.closeBtn?.addEventListener('click', () => hide(loginModal.container));
-        loginModal.socialButtons.forEach((btn) => btn.addEventListener('click', () => {
+        loginModal.socialButtons?.forEach((btn) => btn.addEventListener('click', () => {
             isLoggedIn = true;
             localStorage.setItem('dofree_logged_in', 'true');
             hide(loginModal.container);
             updateAuthUI();
-            showAlert('เข้าสู่ระบบแล้ว', 'ระบบจำลองการเข้าสู่ระบบสำเร็จ');
+            showAlert('เข้าสู่ระบบสำเร็จ', 'ยินดีต้อนรับกลับสู่ DOFree');
         }));
         userProfile.btn?.addEventListener('click', () => userProfile.dropdown?.classList.toggle('hidden'));
-        userProfile.logoutBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
+        userProfile.logoutBtn?.addEventListener('click', () => {
             isLoggedIn = false;
             localStorage.removeItem('dofree_logged_in');
             updateAuthUI();
         });
-        userProfile.favoritesLink?.addEventListener('click', (e) => { e.preventDefault(); openFavorites(); hide(userProfile.dropdown); });
-        bellBtn?.addEventListener('click', () => { renderNotification(); show(notificationModal.container); });
-        notificationModal.closeBtn?.addEventListener('click', () => hide(notificationModal.container));
-        notificationModal.overlay?.addEventListener('click', () => hide(notificationModal.container));
-        alertModal.closeBtn?.addEventListener('click', () => hide(alertModal.container));
-        headerPremiumBtn?.addEventListener('click', openPremiumModal);
-        premiumSubscribeLink?.addEventListener('click', (e) => { e.preventDefault(); openPremiumModal(); hide(userProfile.dropdown); });
+        userProfile.favoritesLink?.addEventListener('click', (event) => {
+            event.preventDefault();
+            hide(userProfile.dropdown);
+            openFavorites();
+        });
+
+        headerPremiumBtn?.addEventListener('click', () => show(premiumModal.container));
+        premiumSubscribeLink?.addEventListener('click', (event) => {
+            event.preventDefault();
+            show(premiumModal.container);
+        });
         premiumModal.closeBtn?.addEventListener('click', () => hide(premiumModal.container));
-        premiumModal.copyBtn?.addEventListener('click', () => {
+        premiumModal.copyBtn?.addEventListener('click', async () => {
             const text = premiumModal.accountNumberText?.textContent || '';
-            navigator.clipboard?.writeText(text);
-            showAlert('คัดลอกแล้ว', 'คัดลอกเลขที่บัญชีแล้ว');
+            if (navigator.clipboard && text) await navigator.clipboard.writeText(text);
+            showAlert('คัดลอกแล้ว', 'คัดลอกเลขบัญชีเรียบร้อย');
         });
         premiumModal.slipUpload?.addEventListener('change', () => {
             const file = premiumModal.slipUpload.files?.[0];
             if (!file) return;
             setText(premiumModal.slipFilename, file.name);
-            const reader = new FileReader();
-            reader.onload = (e) => { premiumModal.slipPreview.innerHTML = `<img src="${e.target.result}" class="w-full h-28 object-cover rounded-md">`; };
-            reader.readAsDataURL(file);
+            if (premiumModal.slipPreview) premiumModal.slipPreview.src = URL.createObjectURL(file);
         });
-        premiumModal.form?.addEventListener('submit', (e) => {
-            e.preventDefault();
+        premiumModal.form?.addEventListener('submit', (event) => {
+            event.preventDefault();
             premiumStatus = 'pending';
             localStorage.setItem('dofree_premium_status', premiumStatus);
             updatePremiumUI();
             hide(premiumModal.container);
-            showAlert('ส่งคำขอแล้ว', 'ระบบบันทึกคำขอ Premium แล้ว สถานะรอตรวจสอบ');
+            showAlert('ส่งข้อมูลแล้ว', 'ระบบได้รับข้อมูลการสมัคร Premium แล้ว');
         });
+
+        bellBtn?.addEventListener('click', () => {
+            if (notificationModal.content) notificationModal.content.innerHTML = '<p class="text-gray-300">ยังไม่มีการแจ้งเตือนใหม่</p>';
+            show(notificationModal.container);
+        });
+        notificationModal.closeBtn?.addEventListener('click', () => hide(notificationModal.container));
+        notificationModal.overlay?.addEventListener('click', () => hide(notificationModal.container));
+        alertModal.closeBtn?.addEventListener('click', () => hide(alertModal.container));
+
         adPlayer.skipBtn?.addEventListener('click', () => {
-            if (adPlayer.skipBtn.disabled) return;
             currentAdIndex += 1;
             playNextAd();
         });
@@ -702,27 +789,56 @@ document.addEventListener('DOMContentLoaded', () => {
             currentAdIndex += 1;
             playNextAd();
         });
-        adPlayer.subscribeBtn?.addEventListener('click', () => { hide(adPlayer.modal); openPremiumModal(); });
-        chat.toggleBtn?.addEventListener('click', () => show(chat.window));
+        adPlayer.subscribeBtn?.addEventListener('click', () => show(premiumModal.container));
+
+        playerPage.backBtn?.addEventListener('click', () => {
+            hide(playerPage.section);
+            show(mainContent);
+            history.pushState(null, '', '#');
+            window.scrollTo(0, 0);
+            if (playerPage.youtubeWrapper) playerPage.youtubeWrapper.innerHTML = '';
+        });
+
+        chat.toggleBtn?.addEventListener('click', () => chat.window?.classList.toggle('hidden'));
         chat.closeBtn?.addEventListener('click', () => hide(chat.window));
-        chat.sendBtn?.addEventListener('click', sendChat);
-        chat.input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
-        playerPage.backBtn?.addEventListener('click', () => { hide(playerPage.section); show(mainContent); history.pushState(null, '', '#'); window.scrollTo(0, 0); });
-        window.addEventListener('popstate', route);
+        chat.sendBtn?.addEventListener('click', sendChatMessage);
+        chat.input?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') sendChatMessage();
+        });
+
+        window.addEventListener('popstate', handleRoute);
     }
 
-    function route() {
+    function sendChatMessage() {
+        const text = chat.input?.value?.trim();
+        if (!text || !chat.messages) return;
+        chat.messages.insertAdjacentHTML('beforeend', `<div class="text-right"><span class="inline-block bg-red-600 rounded-lg px-3 py-2 text-sm">${text}</span></div>`);
+        chat.input.value = '';
+        setTimeout(() => {
+            chat.messages.insertAdjacentHTML('beforeend', '<div><span class="inline-block bg-gray-700 rounded-lg px-3 py-2 text-sm">รับเรื่องแล้วครับ ทีมงานจะตรวจสอบให้</span></div>');
+            chat.messages.scrollTop = chat.messages.scrollHeight;
+        }, 500);
+        chat.messages.scrollTop = chat.messages.scrollHeight;
+    }
+
+    function handleRoute() {
         const match = location.hash.match(/^#\/player\/(movie|tv)\/(\d+)/);
-        if (match) openPlayer(match[1], match[2]);
-        else {
+        if (match) {
+            openPlayer(match[1], match[2]);
+        } else {
             hide(playerPage.section);
             show(mainContent);
         }
     }
 
-    updateAuthUI();
-    updatePremiumUI();
-    wireEvents();
-    loadGenres();
-    loadHome().then(route);
+    async function init() {
+        updateAuthUI();
+        updatePremiumUI();
+        bindEvents();
+        await loadGenres();
+        await loadHome();
+        handleRoute();
+    }
+
+    init();
 });
