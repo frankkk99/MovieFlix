@@ -1,0 +1,3 @@
+Trigger Vercel production deploy after rollback.
+Date: 2026-06-22
+Reason: restore working script after failed trailer boot patch.
