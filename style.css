@@ -244,4 +244,37 @@ body:hover {
         padding-right: 1rem !important;
         padding-bottom: 3rem !important;
     }
+
+    #player-cast {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        column-gap: 0.55rem !important;
+        row-gap: 1rem !important;
+    }
+
+    #player-cast > div {
+        min-width: 0;
+    }
+
+    #player-cast img {
+        width: 100% !important;
+        aspect-ratio: 2 / 3;
+        object-fit: cover;
+        border-radius: 0.55rem !important;
+    }
+
+    #player-cast h4,
+    #player-cast p {
+        font-size: 0.68rem !important;
+        line-height: 1.18 !important;
+    }
+
+    #player-cast h4 {
+        margin-top: 0.35rem !important;
+        font-weight: 600;
+    }
+
+    #player-cast p {
+        margin-top: 0.15rem !important;
+        color: #9ca3af;
+    }
 }
