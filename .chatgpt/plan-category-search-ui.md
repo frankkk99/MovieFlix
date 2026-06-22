@@ -1,0 +1,1 @@
+Preview branch plan for category/search UI update. Do not touch production flow directly. Changes should keep pre-API JavaScript behavior stable while adding compact mobile category/search UI, better auth buttons, and English-primary display.
